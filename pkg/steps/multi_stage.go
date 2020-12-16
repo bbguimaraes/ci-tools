@@ -135,6 +135,7 @@ func (s *multiStageTestStep) Run(ctx context.Context) error {
 }
 
 func (s *multiStageTestStep) run(ctx context.Context) error {
+	log.Printf("Executing multi-stage test %q", s.name)
 	env, err := s.environment(ctx)
 	if err != nil {
 		return err
@@ -149,12 +150,12 @@ func (s *multiStageTestStep) run(ctx context.Context) error {
 		return fmt.Errorf("failed to create RBAC objects: %w", err)
 	}
 	var errs []error
-	if err := s.runSteps(ctx, s.pre, env, true, false); err != nil {
+	if err := s.runSteps(ctx, "pre", s.pre, env, true, false); err != nil {
 		errs = append(errs, fmt.Errorf("%q pre steps failed: %w", s.name, err))
-	} else if err := s.runSteps(ctx, s.test, env, true, len(errs) != 0); err != nil {
+	} else if err := s.runSteps(ctx, "test", s.test, env, true, len(errs) != 0); err != nil {
 		errs = append(errs, fmt.Errorf("%q test steps failed: %w", s.name, err))
 	}
-	if err := s.runSteps(context.Background(), s.post, env, false, len(errs) != 0); err != nil {
+	if err := s.runSteps(context.Background(), "post", s.post, env, false, len(errs) != 0); err != nil {
 		errs = append(errs, fmt.Errorf("%q post steps failed: %w", s.name, err))
 	}
 	return utilerrors.NewAggregate(errs)
@@ -331,11 +332,20 @@ func (s *multiStageTestStep) createCredentials() error {
 
 func (s *multiStageTestStep) runSteps(
 	ctx context.Context,
+	stage string,
 	steps []api.LiteralTestStep,
 	env []coreapi.EnvVar,
 	shortCircuit bool,
 	hasPrevErrs bool,
 ) error {
+	if len(steps) == 0 {
+		return nil
+	}
+	var names []string
+	for i := range steps {
+		names = append(names, steps[i].As)
+	}
+	log.Printf("Executing stage %q, steps: %v", stage, names)
 	pods, isBestEffort, err := s.generatePods(steps, env, hasPrevErrs)
 	if err != nil {
 		return err
