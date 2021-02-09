@@ -257,7 +257,11 @@ func (s *multiStageTestStep) setupRBAC(ctx context.Context) error {
 }
 
 func (s *multiStageTestStep) environment(ctx context.Context) ([]coreapi.EnvVar, error) {
-	var ret []coreapi.EnvVar
+	// TODO implement this properly?
+	ret := []coreapi.EnvVar{
+		{Name: "KUBECONFIG", Value: filepath.Join(SecretMountPath, "kubeconfig")},
+		{Name: "KUBEADMIN_PASSWORD_FILE", Value: filepath.Join(SecretMountPath, "kubeadmin-password")},
+	}
 	for _, l := range s.leases {
 		val, err := s.params.Get(l.Env)
 		if err != nil {
@@ -450,10 +454,6 @@ func (s *multiStageTestStep) generatePods(steps []api.LiteralTestStep, env []cor
 		}
 		if s.profile != "" {
 			addProfile(s.profileSecretName(), s.profile, pod)
-			container.Env = append(container.Env, []coreapi.EnvVar{
-				{Name: "KUBECONFIG", Value: filepath.Join(SecretMountPath, "kubeconfig")},
-				{Name: "KUBEADMIN_PASSWORD_FILE", Value: filepath.Join(SecretMountPath, "kubeadmin-password")},
-			}...)
 		}
 		if step.Cli != "" {
 			errs = append(errs, addCliInjector(step.Cli, pod, s.artifactsViaPodUtils))
